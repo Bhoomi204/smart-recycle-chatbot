@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>ScrapBot</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="header">SCRAPBOT</div>
+  <div id="chat-box"></div>
+  <div class="input-row">
+  <div class="text-send-group">
+    <input id="user-input" type="text" placeholder="Type your message here">
+    <button id="send-btn" onclick="sendMessage()">Send</button>
+  </div>
+  <input type="file" id="image-input" accept="image/*">
+  <button onclick="getLocation()">📍 Share Location</button>
+</div>
+
+  <script>
+    const chatBox = document.getElementById('chat-box');
+
+    function appendMessage(role, text, imageData = null) {
+      const msgRow = document.createElement('div');
+      msgRow.classList.add('msg-row');
+      const msg = document.createElement('div');
+      msg.classList.add('msg', role);
+      msg.innerText = text;
+      msgRow.appendChild(msg);
+      if (imageData) {
+        const img = document.createElement('img');
+        img.src = imageData;
+        img.style.maxWidth = "250px";
+        img.style.display = "block";
+        img.style.marginTop = "8px";
+        msg.appendChild(img);
+      }
+      chatBox.appendChild(msgRow);
+      chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+    async function sendMessage() {
+      const input = document.getElementById('user-input');
+      const fileInput = document.getElementById('image-input');
+      const text = input.value.trim();
+      const file = fileInput.files[0];
+
+      if (!text && !file) return;
+
+      // Show user message with (optional) image preview
+      appendMessage('user', text || (file ? 'Image for detection' : ''), file ? URL.createObjectURL(file) : null);
+
+      input.value = '';
+      fileInput.value = '';
+
+      // Prepare form data
+      let body, headers;
+      if (file) {
+        body = new FormData();
+        body.append('message', text || 'Detect waste'); // Always send a message
+        body.append('image', file);
+        headers = {}; // Let browser set Content-Type
+      } else {
+        body = JSON.stringify({ message: text });
+        headers = { 'Content-Type': 'application/json' };
+      }
+
+      try {
+        const response = await fetch('http://localhost:3000/chat', {
+          method: 'POST',
+          headers,
+          body
+        });
+        if (!response.ok) {
+          const errText = await response.text();
+          appendMessage('bot', `⚠️ Server error: ${errText}`);
+          return;
+        }
+        const data = await response.json();
+        appendMessage('bot', data.reply, data.image || null);
+      } catch (err) {
+        appendMessage('bot', '⚠️ Error: Could not reach server.');
+        console.error(err);
+      }
+    }
+    function getLocation() {
+  if (!navigator.geolocation) {
+    appendMessage('bot', 'Geolocation is not supported by your browser.');
+    return;
+  }
+
+  navigator.geolocation.getCurrentPosition(
+    (position) => {
+      const lat = position.coords.latitude;
+      const lon = position.coords.longitude;
+      const locationMessage = `My location is: ${lat.toFixed(4)}, ${lon.toFixed(4)}`;
+      document.getElementById('user-input').value = locationMessage;
+    },
+    () => {
+      appendMessage('bot', '⚠️ Failed to retrieve location.');
+    }
+  );
+}
+
+    window.onload = function() {
+    appendMessage('bot', "Hey, How can I help you? If you want to schedule a pickup, type 'yes'.");
+  };
+  </script>
+</body>
+</html>
