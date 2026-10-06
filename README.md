@@ -1,175 +1,187 @@
-# ♻️ SustaShelf | Smart Scrap Management & AI Valuation Platform
+# 🤖 ScrapBot — AI Scrap Detection, Real-Time Valuation & Dispatch Engine
 
-**SustaShelf (ScrapBot)** is an end-to-end AI-powered scrap recycling and real-time valuation ecosystem. It bridges custom computer vision with live commodity pricing to automate recyclable material identification, scrap valuation, automated pickup dispatches, and long-term commodity price forecasting.
-
----
-
-## 📌 Key Features
-
-* 🧠 **AI-Powered Object Detection:** Custom-trained **YOLOv8** model fine-tuned on a 17-class waste sorting dataset to detect materials such as cardboard, plastics, tin cans, copper wire, and stainless steel.
-* 💰 **Real-Time Scrap Valuation:** Automated valuation engine pairing detected class counts with live metal market prices via **MetalPriceAPI**.
-* 📲 **Automated Dispatch System:** Express backend integrated with **Twilio Programmable SMS** to route pickup requests with user location and scheduled pickup times to local collectors (*Kabadiwala*).
-* 📊 **Market Predictive Analytics:** **Prophet**-driven Streamlit dashboard providing 6-month price trend forecasting for key industrial metals ($Cu$, $Al$, $Ni$, $Li$, $Co$).
-* 💬 **Interactive User Interface:** Responsive web client (`bot.html`) enabling instant photo upload, detection confirmation, itemized bill breakdown, and scheduling.
+> **Module 1 of the [SustaShelf Circular Economy Platform](https://github.com/Bhoomi204/SustaShelf)**  
+> **ScrapBot** is an operational AI chatbot micro-system that identifies household and industrial recyclables from photos, estimates instant monetary payouts using live metal spot prices, and dispatches automated SMS pickup alerts to local scrap collectors (*Kabadiwalas*).
 
 ---
 
-## 🏗️ System Architecture & Data Flow
+## ⚙️ Micro-Service Architecture & Workflow
+
+ScrapBot combines two backend micro-services (Python Flask + Node.js Express) working in sync with a responsive frontend client (`bot.html`):
 
 ```
-┌─────────────────┐       ┌────────────────────────┐       ┌───────────────────────┐
-│                 │       │  Flask Computer Vision │       │  Live Commodity Rates │
-│  Client UI      ├──────►│  & Valuation API       │◄──────┤  (MetalPriceAPI)      │
-│  (bot.html)     │       │  (custom_trained_api)  │       └───────────────────────┘
-└────────┬────────┘       └───────────┬────────────┘
-         │                            │
-         │ Request Pickup             │ Class Counts & Estimated Value
-         ▼                            ▼
-┌──────────────────────────────────────────────────┐       ┌───────────────────────┐
-│ Node.js / Express Backend Server (server.js)     ├──────►│ Twilio SMS Dispatch   │
-└──────────────────────────────────────────────────┘       │ (To Scrap Collector)  │
-                                                           └───────────────────────┘
+                               ┌─────────────────────────────────────────┐
+                               │            Client (bot.html)            │
+                               └────────────────────┬────────────────────┘
+                                                    │
+                                         1. Upload Scrap Image
+                                                    │
+                                                    ▼
+┌───────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│  Python Flask Server (custom_trained_api.py - Port 5000)                                              │
+│                                                                                                       │
+│   ┌────────────────────────────────┐         ┌─────────────────────────────────────────────────────┐  │
+│   │ Custom YOLOv8m Vision Engine   │ ──────► │ MetalPriceAPI Spot Valuation                        │  │
+│   │ (Detection model/weights/best.pt)│        │ (Item Counts × Live Spot Prices = Itemized Valuation)│  │
+│   └────────────────────────────────┘         └──────────────────────────┬──────────────────────────┘  │
+└─────────────────────────────────────────────────────────────────────────┼─────────────────────────────┘
+                                                                          │
+                                                          2. Returns Breakdown & Valuation
+                                                                          │
+                                                                          ▼
+┌───────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│  Node.js / Express Dispatch Server (server.js - Port 3000)                                            │
+│                                                                                                       │
+│   Captures user geolocation, preferred schedule, and itemized payout details.                          │
+│   Dispatches structured SMS dispatch alert via Twilio Programmable SMS API.                            │
+└─────────────────────────────────────────┬─────────────────────────────────────────────────────────────┘
+                                          │
+                               3. Automated Dispatch SMS
+                                          │
+                                          ▼
+                         📱 Local Scrap Collector (Kabadiwala)
 ```
-
-1. **Vision Inference:** User uploads a scrap photo via `bot.html`. Flask API passes the image to the custom YOLOv8 model (`best.pt`).
-2. **Pricing Engine:** Flask service matches identified objects against real-time spot rates from MetalPriceAPI to compute itemized and total values.
-3. **Dispatch & SMS:** On user confirmation, Node.js captures pickup time and location, formatting and triggering an automated SMS via Twilio.
 
 ---
 
-## 🧠 Model Architecture & Training Metrics
+## 🧠 Custom YOLOv8 Vision Model Performance
 
-The vision pipeline uses a custom-trained **YOLOv8 Medium (`yolov8m.pt`)** object detector trained on NVIDIA Tesla T4 GPUs via PyTorch and Ultralytics.
+The identification layer uses a fine-tuned **YOLOv8 Medium (`yolov8m.pt`)** vision model trained on NVIDIA Tesla T4 GPUs across a 17-class recyclable materials dataset.
 
-### Model Metrics Summary
+### Evaluation Metrics Summary
 
-* **Base Weights:** `yolov8m.pt` (25.8M parameters | 78.7 GFLOPs)
-* **Dataset Classes:** 17 Classes (*Cardboard, Tin Can, Plastic, Copper Wires, Stainless Steel, Car Body, Disposable Aluminium, etc.*)
-* **Precision ($P$):** $0.499$
-* **Recall ($R$):** $0.406$
-* **mAP@50:** **$42.4\%$**
-* **mAP@50-95:** **$35.5\%$**
-* **Inference Speed:** $\sim 10.5\text{ ms / frame}$ on GPU
+| Metric | Score / Benchmark |
+| :--- | :--- |
+| **Architecture** | Fine-tuned `yolov8m.pt` |
+| **Model Parameters** | 25.8M parameters / 78.7 GFLOPs |
+| **Precision ($P$)** | **$0.499$** |
+| **Recall ($R$)** | **$0.406$** |
+| **mAP@50** | **$42.4\%$** |
+| **mAP@50-95** | **$35.5\%$** |
+| **Inference Speed** | **$\sim 10.5\text{ ms / image}$** (Tesla T4) |
 
-#### Key Class Performances ($mAP@50$):
+### Class Accuracy Highlights ($mAP@50$)
 * 📦 **Cardboard:** $83.1\%$
 * 🔍 **Camera Lens:** $69.5\%$
 * 🚗 **Car Body:** $66.6\%$
 * 🥫 **Disposable Aluminium:** $63.5\%$
 * 🛢️ **Tin Can:** $54.8\%$
+* 🔌 **Copper Wires:** $49.6\%$
 
 ---
 
-## 📂 Repository Structure
+## 🛠️ Repository Directory Hierarchy
 
 ```text
 smart-recycle-chatbot/
 ├── Detection model/
 │   └── weights/
-│       └── best.pt               # Fine-tuned YOLOv8 model weights
-├── uploads/                      # Temporary image storage for inference
-├── bot.html                      # Frontend chatbot interface
-├── style.css                     # UI styling
-├── custom_trained_api.py         # Flask server (YOLOv8 inference & MetalPriceAPI)
-├── server.js                     # Express server (Main backend & Twilio integration)
-├── .env.example                  # Environment configuration template
-├── package.json                  # Node.js dependencies
-└── README.md                     # Project documentation
+│       └── best.pt               # Trained YOLOv8 weights (52MB)
+├── bot.html                      # Interactive web chatbot interface
+├── style.css                     # Responsive styling
+├── custom_trained_api.py         # Flask server (Inference & MetalPriceAPI)
+├── server.js                     # Express server (Twilio SMS dispatch)
+├── package.json                  # Node dependencies
+├── requirements.txt              # Python dependencies
+├── .env.example                  # Environment variables template
+└── README.md                     # Module documentation
 ```
 
 ---
 
-## 🛠️ Tech Stack
+## 🚀 Quickstart & Local Setup Guide
 
-* **Computer Vision & Forecasting:** Python, Ultralytics YOLOv8, PyTorch, Prophet, Streamlit
-* **Backend Services:** Node.js, Express.js, Flask
-* **Frontend:** HTML5, CSS3, JavaScript (Fetch API)
-* **APIs & Cloud Tools:** MetalPriceAPI, Twilio Programmable SMS, OpenAI API (optional)
-
----
-
-## 🚀 Getting Started
-
-### Prerequisites
-* **Python:** 3.11 or higher
-* **Node.js:** v18 or higher
-* **npm:** v9 or higher
-
----
-
-### 1. Installation
-
-Clone the repository and install both Python and Node dependencies:
-
-```bash
-# Clone repository
-git clone https://github.com/Bhoomi204/smart-recycle-chatbot.git
-cd smart-recycle-chatbot
-
-# Install Node.js dependencies
-npm install
-
-# Install Python dependencies
-pip install -r requirements.txt
-```
-
-*(Note: Ensure `ultralytics`, `flask`, `requests`, and `torch` are included in your `requirements.txt`).*
-
----
+### 1. Prerequisites
+* **Python 3.11+** installed
+* **Node.js v18+** installed
+* Active **MetalPriceAPI** key and **Twilio** account credentials
 
 ### 2. Environment Configuration
-
-Create a `.env` file in the root directory based on `.env.example`:
+Create a `.env` file in the repository root based on `.env.example`:
 
 ```env
-# Server Port
 PORT=3000
-
-# API Keys
-OPENAI_API_KEY=your_openai_key_optional
-METAL_PRICE_API_KEY=your_metalpriceapi_key
-
-# Twilio SMS Credentials
+METAL_PRICE_API_KEY=your_metalprice_api_key
 TWILIO_SID=your_twilio_account_sid
 TWILIO_AUTH=your_twilio_auth_token
 TWILIO_PHONE=your_twilio_virtual_phone_number
-KABADIWALA_PHONE=collector_phone_number
+KABADIWALA_PHONE=registered_collector_phone_number
 ```
 
----
+### 3. Launch Flask ML & Valuation Server (Port 5000)
+```bash
+# Install Python dependencies
+pip install -r requirements.txt
 
-### 3. Execution
+# Run the Flask API
+python custom_trained_api.py
+```
 
-1. **Start the Flask Vision API:**
-   ```bash
-   python custom_trained_api.py
-   ```
-   *Runs on `http://localhost:5000`*
+### 4. Launch Node.js Express Dispatch Server (Port 3000)
+In a new terminal window:
+```bash
+# Install Node dependencies
+npm install
 
-2. **Start the Express Server:**
-   ```bash
-   node server.js
-   ```
-   *Runs on `http://localhost:3000`*
+# Start Express server
+node server.js
+```
 
-3. **Access the Chatbot:**
-   Open your browser and navigate to `http://localhost:3000/bot.html`.
-
----
-
-## 💬 Sample Valuation & SMS Output
-
-### Valuation Output Example:
+### 5. Access ScrapBot
+Open your browser and navigate to:
 ```text
-Itemized Detection & Valuation:
-• Cardboard  : 2 x ₹15.00 = ₹30.00
-• Tin Can    : 3 x ₹22.50 = ₹67.50
-• Plastic    : 1 x ₹12.00 = ₹12.00
-------------------------------------
-Total Estimated Value: ₹109.50
+http://localhost:3000/bot.html
 ```
 
-### Automated Twilio SMS Payload:
-> *"📦 **New Pickup Scheduled!**\nLocation: Sector 14, Main Gate\nTime: 04:30 PM\nEstimated Items: Cardboard (2), Tin Can (3), Plastic (1)\nEstimated Value: ₹109.50"*
+---
+
+## 🔌 API Endpoints & Contract
+
+### 1. Flask Inference & Valuation API (`custom_trained_api.py`)
+* **Endpoint:** `POST /predict`
+* **Content-Type:** `multipart/form-data`
+* **Payload:** `file` (Image file)
+* **Response:**
+  ```json
+  {
+    "status": "success",
+    "detections": [
+      { "class": "cardboard", "count": 2, "unit_price": 15.0, "subtotal": 30.0 },
+      { "class": "tin-can", "count": 1, "unit_price": 70.42, "subtotal": 70.42 }
+    ],
+    "total_estimated_value": 100.42,
+    "currency": "INR"
+  }
+  ```
+
+### 2. Express Logistics Dispatch Service (`server.js`)
+* **Endpoint:** `POST /send-pickup-sms`
+* **Content-Type:** `application/json`
+* **Payload:**
+  ```json
+  {
+    "address": "Sector 14, Block B, Flat 201",
+    "preferredTime": "4:00 PM - 6:00 PM",
+    "items": "2x Cardboard, 1x Tin Can",
+    "totalValue": "₹100.42"
+  }
+  ```
+* **Response:**
+  ```json
+  {
+    "success": true,
+    "messageSid": "SMXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+  }
+  ```
 
 ---
+
+## 🔗 Part of the SustaShelf Ecosystem
+
+ScrapBot serves as the operational transaction layer for **SustaShelf**. For strategic market forecasting, price analytics dashboards, and overarching architecture details, visit the main repository:
+
+👉 **[View Main SustaShelf Repository](https://github.com/Bhoomi204/SustaShelf)**
+
+---
+
+* Powered by [Ultralytics YOLOv8](https://docs.ultralytics.com/), [MetalPriceAPI](https://metalpriceapi.com/), and [Twilio API](https://www.twilio.com/).
