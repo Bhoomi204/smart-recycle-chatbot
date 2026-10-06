@@ -1,80 +1,175 @@
-# ♻️ ScrapBot: Smart Recycle Chatbot with AI Detection, Live Pricing, SMS & Payments
+# ♻️ SustaShelf | Smart Scrap Management & AI Valuation Platform
 
-This is an intelligent chatbot built to streamline scrap collection using AI image detection, live metal pricing and Twilio SMS integration.
+**SustaShelf (ScrapBot)** is an end-to-end AI-powered scrap recycling and real-time valuation ecosystem. It bridges custom computer vision with live commodity pricing to automate recyclable material identification, scrap valuation, automated pickup dispatches, and long-term commodity price forecasting.
 
-## 🔍 Features
+---
 
-- 🧠 AI-powered image detection using a custom YOLO model (`best.pt`)
-- 📸 Detects scrap items like metal, plastic, aluminium, etc.
-- 💰 Calculates live price of metals via [MetalPriceAPI](https://metalpriceapi.com)
-- 📩 Sends pickup requests via SMS using Twilio
-- 📍 Captures user location and pickup time
+## 📌 Key Features
 
-## 🖥️ Tech Stack
+* 🧠 **AI-Powered Object Detection:** Custom-trained **YOLOv8** model fine-tuned on a 17-class waste sorting dataset to detect materials such as cardboard, plastics, tin cans, copper wire, and stainless steel.
+* 💰 **Real-Time Scrap Valuation:** Automated valuation engine pairing detected class counts with live metal market prices via **MetalPriceAPI**.
+* 📲 **Automated Dispatch System:** Express backend integrated with **Twilio Programmable SMS** to route pickup requests with user location and scheduled pickup times to local collectors (*Kabadiwala*).
+* 📊 **Market Predictive Analytics:** **Prophet**-driven Streamlit dashboard providing 6-month price trend forecasting for key industrial metals ($Cu$, $Al$, $Ni$, $Li$, $Co$).
+* 💬 **Interactive User Interface:** Responsive web client (`bot.html`) enabling instant photo upload, detection confirmation, itemized bill breakdown, and scheduling.
 
-- Frontend: HTML, CSS, JS
-- Backend: Node.js (Express), Python (Flask)
-- ML: YOLOv8 (Ultralytics)
-- APIs: OpenAI (optional), MetalPriceAPI, Twilio
+---
+
+## 🏗️ System Architecture & Data Flow
+
+```
+┌─────────────────┐       ┌────────────────────────┐       ┌───────────────────────┐
+│                 │       │  Flask Computer Vision │       │  Live Commodity Rates │
+│  Client UI      ├──────►│  & Valuation API       │◄──────┤  (MetalPriceAPI)      │
+│  (bot.html)     │       │  (custom_trained_api)  │       └───────────────────────┘
+└────────┬────────┘       └───────────┬────────────┘
+         │                            │
+         │ Request Pickup             │ Class Counts & Estimated Value
+         ▼                            ▼
+┌──────────────────────────────────────────────────┐       ┌───────────────────────┐
+│ Node.js / Express Backend Server (server.js)     ├──────►│ Twilio SMS Dispatch   │
+└──────────────────────────────────────────────────┘       │ (To Scrap Collector)  │
+                                                           └───────────────────────┘
+```
+
+1. **Vision Inference:** User uploads a scrap photo via `bot.html`. Flask API passes the image to the custom YOLOv8 model (`best.pt`).
+2. **Pricing Engine:** Flask service matches identified objects against real-time spot rates from MetalPriceAPI to compute itemized and total values.
+3. **Dispatch & SMS:** On user confirmation, Node.js captures pickup time and location, formatting and triggering an automated SMS via Twilio.
+
+---
+
+## 🧠 Model Architecture & Training Metrics
+
+The vision pipeline uses a custom-trained **YOLOv8 Medium (`yolov8m.pt`)** object detector trained on NVIDIA Tesla T4 GPUs via PyTorch and Ultralytics.
+
+### Model Metrics Summary
+
+* **Base Weights:** `yolov8m.pt` (25.8M parameters | 78.7 GFLOPs)
+* **Dataset Classes:** 17 Classes (*Cardboard, Tin Can, Plastic, Copper Wires, Stainless Steel, Car Body, Disposable Aluminium, etc.*)
+* **Precision ($P$):** $0.499$
+* **Recall ($R$):** $0.406$
+* **mAP@50:** **$42.4\%$**
+* **mAP@50-95:** **$35.5\%$**
+* **Inference Speed:** $\sim 10.5\text{ ms / frame}$ on GPU
+
+#### Key Class Performances ($mAP@50$):
+* 📦 **Cardboard:** $83.1\%$
+* 🔍 **Camera Lens:** $69.5\%$
+* 🚗 **Car Body:** $66.6\%$
+* 🥫 **Disposable Aluminium:** $63.5\%$
+* 🛢️ **Tin Can:** $54.8\%$
+
+---
+
+## 📂 Repository Structure
+
+```text
+smart-recycle-chatbot/
+├── Detection model/
+│   └── weights/
+│       └── best.pt               # Fine-tuned YOLOv8 model weights
+├── uploads/                      # Temporary image storage for inference
+├── bot.html                      # Frontend chatbot interface
+├── style.css                     # UI styling
+├── custom_trained_api.py         # Flask server (YOLOv8 inference & MetalPriceAPI)
+├── server.js                     # Express server (Main backend & Twilio integration)
+├── .env.example                  # Environment configuration template
+├── package.json                  # Node.js dependencies
+└── README.md                     # Project documentation
+```
+
+---
+
+## 🛠️ Tech Stack
+
+* **Computer Vision & Forecasting:** Python, Ultralytics YOLOv8, PyTorch, Prophet, Streamlit
+* **Backend Services:** Node.js, Express.js, Flask
+* **Frontend:** HTML5, CSS3, JavaScript (Fetch API)
+* **APIs & Cloud Tools:** MetalPriceAPI, Twilio Programmable SMS, OpenAI API (optional)
 
 ---
 
 ## 🚀 Getting Started
 
-### 1. Clone the Repo
+### Prerequisites
+* **Python:** 3.11 or higher
+* **Node.js:** v18 or higher
+* **npm:** v9 or higher
+
+---
+
+### 1. Installation
+
+Clone the repository and install both Python and Node dependencies:
 
 ```bash
-git clone https://github.com/yourusername/smart-recycle-chatbot.git
+# Clone repository
+git clone https://github.com/Bhoomi204/smart-recycle-chatbot.git
 cd smart-recycle-chatbot
-2. Setup Python API
-pip install -r requirements.txt
-python custom_trained_api.py
-Make sure best.pt is placed in the root directory.
 
-3. Setup Node Backend
+# Install Node.js dependencies
 npm install
-node server.js
-Server runs on: http://localhost:3000
 
-4. Open the Chatbot
-Go to:
-http://localhost:3000/bot.html
-Upload image → detect → get live prices → confirm pickup → get SMS confirmation.
+# Install Python dependencies
+pip install -r requirements.txt
+```
 
-⚙️ Environment Variables
-Create a .env file based on .env.example:
+*(Note: Ensure `ultralytics`, `flask`, `requests`, and `torch` are included in your `requirements.txt`).*
 
-makefile
-OPENAI_API_KEY=
-TWILIO_SID=
-TWILIO_AUTH=
-TWILIO_PHONE=
-KABADIWALA_PHONE=
-📸 Image Detection Example
-Upload image of scrap items
+---
 
-Response:
+### 2. Environment Configuration
 
-yaml
-metal: 2 x ₹58.1 = ₹116.20
-tin: 1 x ₹70.42 = ₹70.42
+Create a `.env` file in the root directory based on `.env.example`:
 
-💰 Total: ₹186.62
-📲 SMS 
-Twilio sends SMS pickup request to Kabadiwala
+```env
+# Server Port
+PORT=3000
 
+# API Keys
+OPENAI_API_KEY=your_openai_key_optional
+METAL_PRICE_API_KEY=your_metalpriceapi_key
 
-📦 Deployment (Coming Soon)
-Host Node backend on Render / Railway
+# Twilio SMS Credentials
+TWILIO_SID=your_twilio_account_sid
+TWILIO_AUTH=your_twilio_auth_token
+TWILIO_PHONE=your_twilio_virtual_phone_number
+KABADIWALA_PHONE=collector_phone_number
+```
 
-Deploy Python API on PythonAnywhere
+---
 
-Use ngrok or reverse proxy if needed
+### 3. Execution
 
-🧠 Credits
-YOLOv8 by Ultralytics
+1. **Start the Flask Vision API:**
+   ```bash
+   python custom_trained_api.py
+   ```
+   *Runs on `http://localhost:5000`*
 
-Twilio Programmable SMS
+2. **Start the Express Server:**
+   ```bash
+   node server.js
+   ```
+   *Runs on `http://localhost:3000`*
 
-MetalPriceAPI
+3. **Access the Chatbot:**
+   Open your browser and navigate to `http://localhost:3000/bot.html`.
 
+---
+
+## 💬 Sample Valuation & SMS Output
+
+### Valuation Output Example:
+```text
+Itemized Detection & Valuation:
+• Cardboard  : 2 x ₹15.00 = ₹30.00
+• Tin Can    : 3 x ₹22.50 = ₹67.50
+• Plastic    : 1 x ₹12.00 = ₹12.00
+------------------------------------
+Total Estimated Value: ₹109.50
+```
+
+### Automated Twilio SMS Payload:
+> *"📦 **New Pickup Scheduled!**\nLocation: Sector 14, Main Gate\nTime: 04:30 PM\nEstimated Items: Cardboard (2), Tin Can (3), Plastic (1)\nEstimated Value: ₹109.50"*
+
+---
